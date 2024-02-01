@@ -10,6 +10,11 @@ import {
   LinearProgress,
   TextField,
   TableSortLabel,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
 } from "@mui/material";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbDownIcon from "@mui/icons-material/ThumbDown";
@@ -27,6 +32,13 @@ const ProblemTable = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [sortColumn, setSortColumn] = useState<SortableColumn | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [error, setError] = useState<boolean>(false);
+  const [hasCheckerFilter, setHasCheckerFilter] = useState<boolean | undefined>(
+    undefined
+  );
+  const [hasSolution, setHasSolution] = useState<boolean | undefined>(
+    undefined
+  );
 
   const coloumnList: Array<keyof Problem> = [
     "id",
@@ -37,14 +49,7 @@ const ProblemTable = () => {
     "solved",
   ];
 
-  const coloumns = [
-    "Id",
-    "Title",
-    "Tags",
-    "Difficulty Title",
-    "Likes Count",
-    "Solved",
-  ];
+  const coloumns = ["Id", "Title", "Tags", "Difficulty", "Rating", "Solved"];
   const handlePaginationChange = (_event: unknown, newPage: number) => {
     setPage(newPage + 1);
   };
@@ -66,6 +71,12 @@ const ProblemTable = () => {
       .then((data) => {
         setTotalPageElements(data?.total || 0);
         setData(data?.data || []);
+        setError(false);
+        setPage(data.page);
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setError(true);
       })
       .finally(() => setLoading(false));
   }, [page, rowsPerPage]);
@@ -74,6 +85,20 @@ const ProblemTable = () => {
     .filter((problem) =>
       problem.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
+    .filter((problem) => {
+      if (hasCheckerFilter === undefined) {
+        return true;
+      } else {
+        return problem.hasChecker === hasCheckerFilter;
+      }
+    })
+    .filter((problem) => {
+      if (hasSolution === undefined) {
+        return true;
+      } else {
+        return problem.hasSolution === hasSolution;
+      }
+    })
     .sort((a, b) => {
       if (sortColumn === null) return 0;
 
@@ -87,7 +112,6 @@ const ProblemTable = () => {
       } else if (typeof aValue === "number" && typeof bValue === "number") {
         return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
       }
-
       return 0;
     });
 
@@ -100,90 +124,154 @@ const ProblemTable = () => {
     }
   };
 
+  const handleHasCheckerFilter = (event: SelectChangeEvent) => {
+    if (event.target.value === "All") {
+      setHasCheckerFilter(undefined);
+    } else if (event.target.value === "HasChecker") {
+      setHasCheckerFilter(true);
+    } else {
+      setHasCheckerFilter(false);
+    }
+  };
+
+  const handleHasSolutionFilter = (event: SelectChangeEvent) => {
+    if (event.target.value === "All") {
+      setHasSolution(undefined);
+    } else if (event.target.value === "HasSolution") {
+      setHasSolution(true);
+    } else {
+      setHasSolution(false);
+    }
+  };
+
   return (
-    <div className="container m-auto border rounded-md">
-      {loading && <LinearProgress />}
-      <TextField
-        label="Search by Title"
-        variant="outlined"
-        value={searchTerm}
-        onChange={handleSearchChange}
-        fullWidth
-        className="mb-7"
-      />
-      {filteredData.length === 0 && !loading ? (
-        <div className="text-center">Nothing found</div>
-      ) : (
-        <Table>
-          <TableHead>
-            <TableRow>
-              {coloumnList.map((value: keyof Problem, index: number) => (
-                <TableCell
-                  key={value}
-                  sortDirection={sortColumn === value ? sortOrder : false}
-                >
-                  {value !== "tags" && (
-                    <TableSortLabel
-                      active={sortColumn === value}
-                      direction={sortColumn === value ? sortOrder : "asc"}
-                      onClick={() => handleSortClick(value)}
-                    >
-                      {coloumns[index]}
-                    </TableSortLabel>
-                  )}
-                  {value === "tags" && <>{coloumns[index]}</>}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData.map((problem) => (
-              <TableRow key={problem.id}>
-                <TableCell>{problem.id}</TableCell>
-                <TableCell>{problem.title}</TableCell>
-                <TableCell>
-                  {problem.tags.map((tag) => (
-                    <Chip
-                      color="primary"
-                      style={{ margin: "5px" }}
-                      key={tag.id}
-                      label={tag.name}
-                    />
-                  ))}
-                </TableCell>
-                <TableCell>
-                  <div
-                    className={`${handleDifficultyColor(
-                      problem.difficultyTitle
-                    )} py-2 text-center rounded-full text-white`}
+    <>
+      {loading && <LinearProgress className="absolute top-0 left-0" />}
+      <div className="container m-auto my-11">
+        <div className="flex gap-2 items-center">
+          <TextField
+            fullWidth
+            label="Search by Title"
+            variant="outlined"
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="w-[350px]"
+          />
+          <FormControl fullWidth>
+            <InputLabel id="demo-ckecker-select-label">
+              Select Checker
+            </InputLabel>
+            <Select
+              labelId="demo-ckecker-select-label"
+              id="demo-checker-select"
+              label="Age"
+              onChange={handleHasCheckerFilter}
+            >
+              <MenuItem value={"All"}>All</MenuItem>
+              <MenuItem value={"HasChecker"}>Has checker</MenuItem>
+              <MenuItem value={"NoChecker"}>No checker</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth>
+            <InputLabel id="demo-solution-select-label">
+              Select solution
+            </InputLabel>
+            <Select
+              labelId="demo-solution-select-label"
+              id="demo-solution-select"
+              label="Solution"
+              onChange={handleHasSolutionFilter}
+            >
+              <MenuItem value={"All"}>All</MenuItem>
+              <MenuItem value={"HasSolution"}>Has solution</MenuItem>
+              <MenuItem value={"NoSolution"}>No solution</MenuItem>
+            </Select>
+          </FormControl>
+        </div>
+        {filteredData.length === 0 && !loading && !error && (
+          <div className="text-center">Nothing found</div>
+        )}
+        {/* JUST INCASE SERVES IS DOWN */}
+        {!loading && error && (
+          <div className="text-center">
+            Something went wrong please check your network
+          </div>
+        )}
+        {filteredData.length > 0 && !loading && !error && (
+          <Table className="border rounded-lg my-4">
+            <TableHead>
+              <TableRow>
+                {coloumnList.map((value: keyof Problem, index: number) => (
+                  <TableCell
+                    key={value}
+                    sortDirection={sortColumn === value ? sortOrder : false}
                   >
-                    {problem.difficultyTitle}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1 justify-start">
-                    <ThumbUpIcon fontSize="medium" />
-                    <span>{problem.likesCount}</span>
-                    <ThumbDownIcon fontSize="medium" />
-                    <span>{problem.dislikesCount}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{problem.solved}</TableCell>
+                    {value !== "tags" && (
+                      <TableSortLabel
+                        active={sortColumn === value}
+                        direction={sortColumn === value ? sortOrder : "asc"}
+                        onClick={() => handleSortClick(value)}
+                      >
+                        <div className="font-bold">{coloumns[index]}</div>
+                      </TableSortLabel>
+                    )}
+                    <div className="font-bold">
+                      {value === "tags" && <>{coloumns[index]}</>}
+                    </div>
+                  </TableCell>
+                ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      <TablePagination
-        rowsPerPageOptions={[10, 20, 50]}
-        component="div"
-        count={totalPageElements}
-        rowsPerPage={rowsPerPage}
-        page={page - 1}
-        onPageChange={handlePaginationChange}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-      />
-    </div>
+            </TableHead>
+            <TableBody>
+              {filteredData.map((problem) => (
+                <TableRow key={problem.id}>
+                  <TableCell>{problem.id}</TableCell>
+                  <TableCell>{problem.title}</TableCell>
+                  <TableCell>
+                    {problem.tags.map((tag) => (
+                      <Chip
+                        color="primary"
+                        style={{ margin: "5px" }}
+                        key={tag.id}
+                        label={tag.name}
+                      />
+                    ))}
+                  </TableCell>
+                  <TableCell>
+                    <div
+                      className={`${handleDifficultyColor(
+                        problem.difficultyTitle
+                      )} py-2 text-center rounded-full text-white`}
+                    >
+                      {problem.difficultyTitle}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1 justify-start">
+                      <ThumbUpIcon fontSize="medium" />
+                      <span>{problem.likesCount}</span>
+                      <ThumbDownIcon fontSize="medium" />
+                      <span>{problem.dislikesCount}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{problem.solved}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <TablePagination
+          rowsPerPageOptions={[10, 20, 50]}
+          component="div"
+          count={totalPageElements}
+          rowsPerPage={rowsPerPage}
+          page={page - 1}
+          onPageChange={handlePaginationChange}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
+      </div>
+    </>
   );
 };
 

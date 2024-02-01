@@ -11,6 +11,8 @@ export interface Problem {
   solved: number;
   likesCount: number;
   dislikesCount: number;
+  hasChecker: boolean;
+  hasSolution: boolean;
 }
 
 export interface ProblemTableProps {
