@@ -1,4 +1,4 @@
-import ProblemTable from "./components/Table";
+import ProblemTable from "./components/ProblemTable";
 
 function App() {
   return (

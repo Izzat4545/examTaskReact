@@ -15,9 +15,6 @@ export const getProblems = async (
       `https://kep.uz/api/problems?title=${searchTitle}&difficulty=${difficulty}&ordering=${sortBy}&has_checker=${has_checker}&has_solution=${has_solution}&page=${page}&page_size=${pageSize}`
     );
     const responseData: ProblemTableProps = await response.json();
-    console.log(
-      `https://kep.uz/api/problems?title=${searchTitle}&difficulty=${difficulty}&ordering=${sortBy}&has_checker=${has_checker}&has_solution=${has_solution}&page=${page}&page_size=${pageSize}`
-    );
     return responseData;
   } catch (error) {
     throw error;
