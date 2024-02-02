@@ -18,10 +18,9 @@ import {
 } from "@mui/material";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbDownIcon from "@mui/icons-material/ThumbDown";
-import { getData } from "../service/getData";
-import { Problem } from "../types/response";
+import { getDifficulties, getProblems } from "../service/getData";
+import { Difficulties, Problem } from "../types/response";
 import { handleDifficultyColor } from "../utils/chipsColorChanges";
-
 const ProblemTable = () => {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -30,9 +29,18 @@ const ProblemTable = () => {
   const [totalPageElements, setTotalPageElements] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [error, setError] = useState<boolean>(false);
-  const [hasCheckerFilter, setHasCheckerFilter] = useState<boolean>(true);
-  const [hasSolution, setHasSolution] = useState<boolean>(true);
+  const [hasCheckerFilter, setHasCheckerFilter] = useState<{
+    filterValue: string;
+    filterArgument: string | boolean;
+  }>({ filterArgument: "", filterValue: "" });
+  const [hasSolution, setHasSolution] = useState<{
+    filterValue: string;
+    filterArgument: string | boolean;
+  }>({ filterArgument: "", filterValue: "" });
   const [sortBy, setSortBy] = useState<string>("");
+  const [difficulties, setDifficulties] = useState<Difficulties[]>([]);
+  const [selectedDifficulties, setSelectedDifficulties] =
+    useState<Difficulties>();
 
   const coloumnList: Array<keyof Problem> = [
     "id",
@@ -43,7 +51,7 @@ const ProblemTable = () => {
     "solved",
   ];
 
-  const coloumns = ["Id", "Title", "Tags", "Difficulty", "Rating", "Solved"];
+  const coloumns = ["Id", "Title", "Tags", "Difficulty", "Rating", "Attempts"];
 
   const handlePaginationChange = (_event: unknown, newPage: number) => {
     setPage(newPage + 1);
@@ -62,7 +70,25 @@ const ProblemTable = () => {
 
   useEffect(() => {
     setLoading(true);
-    getData(page, rowsPerPage, "", sortBy, hasCheckerFilter, hasSolution)
+    getDifficulties().then((data) => setDifficulties(data));
+    // Set page to 1 when filters are applied
+    const currentPage =
+      hasCheckerFilter.filterArgument ||
+      hasSolution.filterArgument ||
+      searchTerm ||
+      selectedDifficulties?.value
+        ? 1
+        : page;
+
+    getProblems(
+      currentPage,
+      rowsPerPage,
+      searchTerm,
+      sortBy,
+      hasCheckerFilter.filterArgument,
+      hasSolution.filterArgument,
+      selectedDifficulties?.value.toString() || ""
+    )
       .then((data) => {
         setTotalPageElements(data?.total || 0);
         setData(data?.data || []);
@@ -74,40 +100,52 @@ const ProblemTable = () => {
         setError(true);
       })
       .finally(() => setLoading(false));
-  }, [hasCheckerFilter, hasSolution, page, rowsPerPage, sortBy]);
-  // FOR SEARCHING
-  useEffect(() => {
-    setLoading(true);
-    setPage(1);
-    getData(1, rowsPerPage, searchTerm, "", true, true)
-      .then((data) => {
-        setTotalPageElements(data?.total || 0);
-        setData(data?.data || []);
-        setError(false);
-        setPage(data.page);
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setError(true);
-      })
-      .finally(() => setLoading(false));
-  }, [rowsPerPage, searchTerm]);
+  }, [
+    page,
+    rowsPerPage,
+    searchTerm,
+    sortBy,
+    hasCheckerFilter.filterArgument,
+    hasSolution.filterArgument,
+    selectedDifficulties?.value,
+  ]);
 
-  const handleHasCheckerFilter = (event: SelectChangeEvent) => {
-    if (event.target.value === "Yes") {
-      setHasCheckerFilter(true);
-    } else {
-      setHasCheckerFilter(false);
-    }
-  };
+  const checkerAndSolutionFilterHandler =
+    (
+      setFilter: React.Dispatch<
+        React.SetStateAction<{
+          filterValue: string;
+          filterArgument: string | boolean;
+        }>
+      >
+    ) =>
+    (event: SelectChangeEvent<string>) => {
+      let filterArgument: string | boolean;
 
-  const handleHasSolutionFilter = (event: SelectChangeEvent) => {
-    if (event.target.value === "Yes") {
-      setHasSolution(true);
-    } else {
-      setHasSolution(false);
+      if (event.target.value === "Yes") {
+        filterArgument = true;
+      } else if (event.target.value === "All") {
+        filterArgument = "";
+      } else {
+        filterArgument = false;
+      }
+
+      setFilter({
+        filterValue: event.target.value,
+        filterArgument,
+      });
+    };
+  function handleDifficultyFilter(event: SelectChangeEvent<string>) {
+    const selectedDifficultyValue = difficulties.find(
+      (difficulty) => difficulty.name === event.target.value
+    );
+    if (selectedDifficultyValue) {
+      setSelectedDifficulties({
+        value: selectedDifficultyValue.value,
+        name: selectedDifficultyValue.name,
+      });
     }
-  };
+  }
 
   const handleSortClick = (column: keyof Problem) => {
     let sortLabel: string;
@@ -120,7 +158,6 @@ const ProblemTable = () => {
     } else {
       sortLabel = column as string;
     }
-
     // Handle the case where the column starts with "-"
     if (!sortBy.startsWith("-")) {
       setSortBy(`-${sortLabel}`);
@@ -134,8 +171,9 @@ const ProblemTable = () => {
       <LinearProgress
         className={`${loading ? "visible" : "invisible"} absolute top-0 left-0`}
       />
-      <div className="container m-auto my-11">
-        <div className="flex gap-2 items-center">
+      <div className="container relative m-auto my-11">
+        {/* MY FORM */}
+        <div className="grid bg-white grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 z-10">
           <TextField
             fullWidth
             label="Search by Title"
@@ -144,6 +182,7 @@ const ProblemTable = () => {
             onChange={handleSearchChange}
             className="w-[350px]"
           />
+          {/* CHEKCER FILTER */}
           <FormControl fullWidth>
             <InputLabel id="demo-ckecker-select-label">
               Include checker
@@ -152,13 +191,15 @@ const ProblemTable = () => {
               labelId="demo-ckecker-select-label"
               id="demo-checker-select"
               label="hasCheckerFilter"
-              value={hasCheckerFilter ? "Yes" : "No"}
-              onChange={handleHasCheckerFilter}
+              value={hasCheckerFilter.filterValue}
+              onChange={checkerAndSolutionFilterHandler(setHasCheckerFilter)}
             >
+              <MenuItem value={"All"}>All of them</MenuItem>
               <MenuItem value={"Yes"}>Yes</MenuItem>
               <MenuItem value={"No"}>No</MenuItem>
             </Select>
           </FormControl>
+          {/* SOLUTION FILTER */}
           <FormControl fullWidth>
             <InputLabel id="demo-solution-select-label">
               Include solution
@@ -167,11 +208,29 @@ const ProblemTable = () => {
               labelId="demo-solution-select-label"
               id="demo-solution-select"
               label="Solution"
-              value={hasSolution ? "Yes" : "No"}
-              onChange={handleHasSolutionFilter}
+              value={hasSolution.filterValue}
+              onChange={checkerAndSolutionFilterHandler(setHasSolution)}
             >
+              <MenuItem value={"All"}>All of them</MenuItem>
               <MenuItem value={"Yes"}>Yes</MenuItem>
               <MenuItem value={"No"}>No</MenuItem>
+            </Select>
+          </FormControl>
+          {/* DIFFICULTY FILTER */}
+          <FormControl fullWidth>
+            <InputLabel id="demo-solution-select-label">Difficulty</InputLabel>
+            <Select
+              labelId="demo-solution-select-label"
+              id="demo-solution-select"
+              label="Solution"
+              value={selectedDifficulties?.name || ""}
+              onChange={handleDifficultyFilter}
+            >
+              {difficulties.map((value) => (
+                <MenuItem key={value.value} value={value.name}>
+                  {value.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </div>
@@ -184,65 +243,70 @@ const ProblemTable = () => {
             Something went wrong, please check your network
           </div>
         )}
+        {/* MY TABLE */}
         {data.length > 0 && !loading && !error && (
-          <Table className="border rounded-lg my-4">
-            <TableHead>
-              <TableRow>
-                {coloumnList.map((value: keyof Problem, index: number) => (
-                  <TableCell key={value}>
-                    {value !== "tags" && (
-                      <TableSortLabel
-                        active={sortBy === value || sortBy === `-${value}`}
-                        direction={sortBy.startsWith("-") ? "desc" : "asc"}
-                        onClick={() => handleSortClick(value)}
-                      >
+          <div className="overflow-x-auto">
+            <Table className="border rounded-lg my-4">
+              <TableHead>
+                <TableRow>
+                  {coloumnList.map((value: keyof Problem, index: number) => (
+                    <TableCell key={value}>
+                      {value !== "tags" && (
+                        <TableSortLabel
+                          active={sortBy === value || sortBy === `-${value}`}
+                          direction={sortBy.startsWith("-") ? "desc" : "asc"}
+                          onClick={() => handleSortClick(value)}
+                        >
+                          <div className="font-bold">{coloumns[index]}</div>
+                        </TableSortLabel>
+                      )}
+                      {value === "tags" && (
                         <div className="font-bold">{coloumns[index]}</div>
-                      </TableSortLabel>
-                    )}
-                    {value === "tags" && (
-                      <div className="font-bold">{coloumns[index]}</div>
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data.map((problem) => (
-                <TableRow key={problem.id}>
-                  <TableCell>{problem.id}</TableCell>
-                  <TableCell>{problem.title}</TableCell>
-                  <TableCell>
-                    {problem.tags.map((tag) => (
-                      <Chip
-                        color="primary"
-                        style={{ margin: "5px" }}
-                        key={tag.id}
-                        label={tag.name}
-                      />
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    <div
-                      className={`${handleDifficultyColor(
-                        problem.difficultyTitle
-                      )} py-2 text-center rounded-full text-white`}
-                    >
-                      {problem.difficultyTitle}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 justify-start">
-                      <ThumbUpIcon fontSize="medium" />
-                      <span>{problem.likesCount}</span>
-                      <ThumbDownIcon fontSize="medium" />
-                      <span>{problem.dislikesCount}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{problem.solved}</TableCell>
+                      )}
+                    </TableCell>
+                  ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {data.map((problem) => (
+                  <TableRow key={problem.id}>
+                    <TableCell>{problem.id}</TableCell>
+                    <TableCell>{problem.title}</TableCell>
+                    <TableCell>
+                      {problem.tags.map((tag) => (
+                        <Chip
+                          color="primary"
+                          style={{ margin: "5px" }}
+                          key={tag.id}
+                          label={tag.name}
+                        />
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      <div
+                        className={`${handleDifficultyColor(
+                          problem.difficultyTitle
+                        )} py-2 text-center rounded-full text-white`}
+                      >
+                        {problem.difficultyTitle}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 justify-start">
+                        <ThumbUpIcon fontSize="medium" />
+                        <span>{problem.likesCount}</span>
+                        <ThumbDownIcon fontSize="medium" />
+                        <span>{problem.dislikesCount}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {problem.solved}/{problem.attemptsCount}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
         <TablePagination
           rowsPerPageOptions={[10, 20, 50]}

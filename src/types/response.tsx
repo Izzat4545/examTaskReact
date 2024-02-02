@@ -9,6 +9,7 @@ export interface Problem {
   tags: Tag[];
   difficultyTitle: string;
   solved: number;
+  attemptsCount: number;
   likesCount: number;
   dislikesCount: number;
   hasChecker: boolean;
@@ -22,4 +23,9 @@ export interface ProblemTableProps {
   total: number;
   pagesCount: number;
   data: Problem[];
+}
+
+export interface Difficulties {
+  value: number;
+  name: string;
 }

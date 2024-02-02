@@ -1,18 +1,19 @@
 export const handleDifficultyColor = (difficulty: string): string => {
   switch (difficulty.toLowerCase()) {
     case "beginner":
-      return "bg-[#4CAF50]"; // Green
+      return "bg-[#28c76f]";
     case "basic":
-      return "bg-[#2196F3]"; // Blue
+      return "bg-[#00cfe8]";
     case "normal":
-      return "bg-[#FFC107]"; // Yellow
+      return "bg-[#4362eef0]";
     case "medium":
-      return "bg-[#8BC34A]"; // Lime Green (you can adjust the color code)
+      return "bg-[#4d4ae8]";
     case "hard":
-      return "bg-[#FF5722]"; // Red
+      return "bg-[#ea5455]";
     case "advanced":
-      return "bg-[#9C27B0]"; // Purple
+      return "bg-[#ff9f43]";
+
     default:
-      return "bg-red-400"; // Set a default color or handle it as needed
+      return "bg-slate-600";
   }
 };
